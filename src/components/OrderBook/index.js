@@ -1,51 +1,24 @@
 import { useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
 import OrderBookComponent from "./OrderBook";
-import { SOCKET_API } from "config/env";
-import { setLoading, setOrders } from "store/orderBook";
 
 export default function OrderBook() {
-    const [subscription, setSubscription] = useState({
-        event: 'subscribe',
-        channel: 'book',
-        symbol: 'tBTCUSD',
-        prec: "P0",
-        freq: "F0"
-    });
+  const dispatch = useDispatch();
+  const [subscription] = useState({
+    event: "subscribe",
+    channel: "book",
+    pair: "tBTCUSD",
+    prec: "P0",
+    freq: "F0",
+    len: "25",
+  });
 
-    const handleSubScription = () => {
-        setSubscription(prev => prev);
-    }
+  useEffect(() => {
+    dispatch({ type: "socket/connect", payload: subscription });
+    return () => {
+      dispatch({ type: "socket/disconnect" });
+    };
+  }, [dispatch, subscription]);
 
-    useEffect(() => {
-        const ws = new WebSocket(SOCKET_API);
-        ws.onopen = () => {
-            ws.send(JSON.stringify(subscription));
-            setLoading(true)
-        }
-        ws.onmessage = (event) => {
-            const response = JSON.parse(event.data);
-            console.log("--->",response);
-            switch (response.event) {
-                case 'data':
-                    console.log("---->", response.data);
-                    setOrders(response.data);
-                    setLoading(false)
-                    break;
-                case 'reconnect':
-                    ws.onopen()
-                    break;
-                default:
-                    setLoading(false)
-                    break;
-            }
-        };
-        ws.onclose = () => {
-            setLoading(false)
-        }
-        return () => {
-            ws.close()
-        }
-    }, [subscription]);
-
-    return <OrderBookComponent handleSubscription={handleSubScription} />
+  return <OrderBookComponent dispatch={dispatch} payload={subscription} />;
 }
